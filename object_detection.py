@@ -9,16 +9,16 @@ def browse_file():
     if filepath:
         play_video(filepath)
 
-# Function to detect red objects in the video frame
+# Function to detect red objects and draw bounding boxes
 def detect_red_objects(frame):
     # Convert the frame from BGR to HSV color space
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # Define lower and upper range for the color red in HSV space
-    lower_red1 = np.array([0, 120, 70])    # First lower red range
-    upper_red1 = np.array([10, 255, 255])  # First upper red range
-    lower_red2 = np.array([170, 120, 70])  # Second lower red range
-    upper_red2 = np.array([180, 255, 255]) # Second upper red range
+    lower_red1 = np.array([0, 120, 50])    # Adjusted lower red range (lighter reds)
+    upper_red1 = np.array([10, 255, 255])  # Adjusted upper red range
+    lower_red2 = np.array([170, 120, 50])  # Adjusted second lower red range (darker reds)
+    upper_red2 = np.array([180, 255, 255]) # Adjusted second upper red range
 
     # Create masks to detect red color
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
@@ -27,10 +27,19 @@ def detect_red_objects(frame):
     # Combine both masks to cover full red range
     mask = mask1 + mask2
 
-    # Apply the mask on the original frame to get the red regions
-    red_detected = cv2.bitwise_and(frame, frame, mask=mask)
+    # Optional: Display the mask for debugging purposes (comment this out if not needed)
+    # cv2.imshow('Red Mask', mask)
 
-    return red_detected
+    # Find contours in the mask (red areas)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Draw bounding boxes around detected red objects
+    for contour in contours:
+        if cv2.contourArea(contour) > 200:  # Lowered contour area threshold for smaller objects
+            x, y, w, h = cv2.boundingRect(contour)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+    return frame
 
 # Function to play the selected video and detect red objects
 def play_video(filepath):
@@ -44,12 +53,11 @@ def play_video(filepath):
             if not ret:
                 break
             
-            # Detect red objects in the frame
+            # Detect red objects in the frame and draw bounding boxes
             red_detected_frame = detect_red_objects(frame)
 
-            # Display the original frame and red-detected frame side by side
-            combined_frame = np.hstack((frame, red_detected_frame))
-            cv2.imshow('Video Player - Left: Original, Right: Red Detection', combined_frame)
+            # Display the frame with red object detection and bounding boxes
+            cv2.imshow('Video Player - Red Object Detection', red_detected_frame)
         
         key = cv2.waitKey(10)
         if key == ord('p'):  # Press 'p' to pause
@@ -60,7 +68,7 @@ def play_video(filepath):
             break
 
         # Check if the OpenCV window was manually closed
-        if cv2.getWindowProperty('Video Player - Left: Original, Right: Red Detection', cv2.WND_PROP_VISIBLE) < 1:
+        if cv2.getWindowProperty('Video Player - Red Object Detection', cv2.WND_PROP_VISIBLE) < 1:
             break
 
     cap.release()
