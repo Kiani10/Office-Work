@@ -3,39 +3,72 @@ from tkinter import filedialog
 import cv2
 import numpy as np
 
+# A simple list of color names and their RGB values
+color_names = {
+    "black": (0, 0, 0),
+    "white": (255, 255, 255),
+    "red": (255, 0, 0),
+    "green": (0, 255, 0),
+    "blue": (0, 0, 255),
+    "yellow": (255, 255, 0),
+    "cyan": (0, 255, 255),
+    "magenta": (255, 0, 255),
+    "gray": (128, 128, 128),
+    "brown": (165, 42, 42),
+    "orange": (255, 165, 0),
+    # Add more colors if needed
+}
+
+# Function to find the closest named color
+def closest_color(requested_color):
+    min_distances = {}
+    for name, rgb in color_names.items():
+        distance = np.sum((np.array(rgb) - np.array(requested_color)) ** 2)
+        min_distances[distance] = name
+    return min_distances[min(min_distances.keys())]
+
+# Function to get the color name for a given BGR color
+def get_color_name(bgr):
+    rgb = (bgr[2], bgr[1], bgr[0])  # Convert BGR to RGB
+    # Check if the RGB color matches any predefined color
+    if rgb in color_names.values():
+        return list(color_names.keys())[list(color_names.values()).index(rgb)]
+    
+    # If no exact match is found, get the closest color name
+    return closest_color(rgb)
+
+# Function to get the clicked color and display it
+def get_color_on_click(event, x, y, flags, param):
+    global paused
+    if event == cv2.EVENT_LBUTTONDOWN:
+        paused = True
+        # Get the BGR color at the clicked position
+        clicked_color = param[y, x]
+        color_name = get_color_name(clicked_color)
+        
+        # Print color info (BGR, RGB, and the color name)
+        print(f"Clicked Color (BGR): {clicked_color}")
+        print(f"Clicked Color (RGB): {clicked_color[::-1]}")
+        print(f"Color Name: {color_name}")
+    
+    elif event == cv2.EVENT_LBUTTONUP:
+        paused = False
+
 # Function to browse and select a video file
 def browse_file():
     filepath = filedialog.askopenfilename(filetypes=[("Video files", "*.mp4;*.avi;*.mkv")])
     if filepath:
         play_video(filepath)
 
-# Function to detect red objects in the video frame
-def detect_red_objects(frame):
-    # Convert the frame from BGR to HSV color space
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    # Define lower and upper range for the color red in HSV space
-    lower_red1 = np.array([0, 120, 70])    # First lower red range
-    upper_red1 = np.array([10, 255, 255])  # First upper red range
-    lower_red2 = np.array([170, 120, 70])  # Second lower red range
-    upper_red2 = np.array([180, 255, 255]) # Second upper red range
-
-    # Create masks to detect red color
-    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-
-    # Combine both masks to cover full red range
-    mask = mask1 + mask2
-
-    # Apply the mask on the original frame to get the red regions
-    red_detected = cv2.bitwise_and(frame, frame, mask=mask)
-
-    return red_detected
-
-# Function to play the selected video and detect red objects
+# Function to play the selected video
 def play_video(filepath):
     cap = cv2.VideoCapture(filepath)
-    
+
+    # Resize the video player window
+    desired_width = 640
+    desired_height = 480
+
+    global paused
     paused = False
 
     while cap.isOpened():
@@ -43,24 +76,22 @@ def play_video(filepath):
             ret, frame = cap.read()
             if not ret:
                 break
-            
-            # Detect red objects in the frame
-            red_detected_frame = detect_red_objects(frame)
 
-            # Display the original frame and red-detected frame side by side
-            combined_frame = np.hstack((frame, red_detected_frame))
-            cv2.imshow('Video Player - Left: Original, Right: Red Detection', combined_frame)
+            # Resize the video frame to a smaller size
+            frame_resized = cv2.resize(frame, (desired_width, desired_height))
+
+            # Display the resized frame
+            cv2.imshow('Video Player - Click to Get Color', frame_resized)
+
+            # Set the mouse callback for detecting clicks
+            cv2.setMouseCallback('Video Player - Click to Get Color', get_color_on_click, frame_resized)
         
         key = cv2.waitKey(10)
-        if key == ord('p'):  # Press 'p' to pause
-            paused = True
-        elif key == ord('s'):  # Press 's' to start/resume
-            paused = False
-        elif key == 27:  # Press 'ESC' to exit
+        if key == 27:  # Press 'ESC' to exit
             break
 
         # Check if the OpenCV window was manually closed
-        if cv2.getWindowProperty('Video Player - Left: Original, Right: Red Detection', cv2.WND_PROP_VISIBLE) < 1:
+        if cv2.getWindowProperty('Video Player - Click to Get Color', cv2.WND_PROP_VISIBLE) < 1:
             break
 
     cap.release()
@@ -73,7 +104,7 @@ def on_closing():
 
 # Set up GUI
 root = tk.Tk()
-root.title("Video Player with Red Object Detection")
+root.title("Video Player with Color Detection")
 
 frame = tk.Frame(root)
 frame.pack(pady=20)
