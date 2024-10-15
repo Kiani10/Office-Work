@@ -2,8 +2,9 @@ import tkinter as tk
 from tkinter import filedialog
 import cv2
 import numpy as np
+from sklearn.metrics import pairwise_distances_argmin
 
-# A simple list of color names and their RGB values
+# Expanded list of color names and their RGB values for better precision
 color_names = {
     "black": (0, 0, 0),
     "white": (255, 255, 255),
@@ -16,24 +17,42 @@ color_names = {
     "gray": (128, 128, 128),
     "brown": (165, 42, 42),
     "orange": (255, 165, 0),
-    # Add more colors if needed
+    "pink": (255, 192, 203),
+    "purple": (128, 0, 128),
+    "lime": (0, 255, 0),
+    "navy": (0, 0, 128),
+    "teal": (0, 128, 128),
+    "olive": (128, 128, 0),
+    "maroon": (128, 0, 0),
+    "silver": (192, 192, 192),
+    "gold": (255, 215, 0),
+    "beige": (245, 245, 220),
+    "indigo": (75, 0, 130),
+    "violet": (238, 130, 238),
+    "chocolate": (210, 105, 30),
+    "coral": (255, 127, 80),
+    "salmon": (250, 128, 114),
+    "khaki": (240, 230, 140),
+    "azure": (240, 255, 255),
+    "ivory": (255, 255, 240),
+    "lavender": (230, 230, 250),
+    "turquoise": (64, 224, 208),
+    "tan": (210, 180, 140),
 }
 
-# Function to find the closest named color
+# Function to find the closest named color using Euclidean distance
 def closest_color(requested_color):
-    min_distances = {}
-    for name, rgb in color_names.items():
-        distance = np.sum((np.array(rgb) - np.array(requested_color)) ** 2)
-        min_distances[distance] = name
-    return min_distances[min(min_distances.keys())]
+    colors = np.array(list(color_names.values()))
+    requested_color = np.array(requested_color).reshape(1, -1)
+    index = pairwise_distances_argmin(requested_color, colors)
+    return list(color_names.keys())[index[0]]
 
 # Function to get the color name for a given BGR color
 def get_color_name(bgr):
     rgb = (bgr[2], bgr[1], bgr[0])  # Convert BGR to RGB
-    # Check if the RGB color matches any predefined color
+    # Directly check if the RGB color matches any predefined color
     if rgb in color_names.values():
         return list(color_names.keys())[list(color_names.values()).index(rgb)]
-    
     # If no exact match is found, get the closest color name
     return closest_color(rgb)
 
